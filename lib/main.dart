@@ -2,24 +2,64 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weather/weather.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:ww_weather/appbar.dart';
+import 'package:ww_weather/setting.dart';
 
 void main() {
   tz.initializeTimeZones();
   runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+
+  static of(BuildContext context) {
+    return context.findAncestorStateOfType<_MyAppState>();
+  }
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+  @override
+  void initState() {
+    super.initState();
+    _loadThemeMode();
+  }
+
+  Future<void> _loadThemeMode() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isDarkMode = prefs.getBool('isDarkMode') ?? false;
+    setState(() {
+      _themeMode = isDarkMode ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
+
+  void changeTheme(ThemeMode themeMode) {
+    setState(() {
+      _themeMode = themeMode;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
+      themeMode: _themeMode,
+      theme: ThemeData.light(
+        useMaterial3: true,
+      ),
+      darkTheme: ThemeData.dark(
+        useMaterial3: true,
+      ),
       title: 'Weather App',
       home: WeatherScreen(),
       debugShowCheckedModeBanner: false,
@@ -31,7 +71,7 @@ class WeatherController extends GetxController {
   var cityName = ''.obs;
   var weather = Rx<Weather?>(null);
   WeatherFactory wf = WeatherFactory("25ea4ddc425fd290784d241f12f46d46");
-  late stt.SpeechToText _speech; // Speech-to-Text instance
+  late stt.SpeechToText _speech;
   bool _isListening = false;
 
   @override
@@ -61,7 +101,6 @@ class WeatherController extends GetxController {
     if (!_isListening) {
       bool available = await _speech.initialize();
       if (available) {
-        // Show dialog when listening
         Get.defaultDialog(
           barrierDismissible: false,
           title: "Speak Now",
@@ -76,15 +115,15 @@ class WeatherController extends GetxController {
               SizedBox(height: 10),
               Text("Speak Now"),
               SizedBox(height: 10),
-              CircularProgressIndicator(), // Visual indicator
+              CircularProgressIndicator(),
             ],
           ),
         );
 
         _speech.listen(onResult: (val) {
-          cityName.value = val.recognizedWords; // Update the text field
+          cityName.value = val.recognizedWords;
           if (val.finalResult) {
-            _stopListening(); // Automatically stop after user stops speaking
+            _stopListening();
           }
         });
         _isListening = true;
@@ -97,13 +136,11 @@ class WeatherController extends GetxController {
   void _stopListening() {
     _speech.stop();
     _isListening = false;
-    Get.back(); // Close the dialog after user stops speaking
+    Get.back();
   }
 
-  // Dynamic timezone fetching based on country code and city
   Future<String> getTimeZone(String countryCode, String cityName) async {
     try {
-      // Step 1: Get latitude and longitude using Geonames Search API
       String searchUrl =
           'http://api.geonames.org/searchJSON?q=$cityName&country=$countryCode&maxRows=1&username=gauravpathak207';
       final searchResponse = await http.get(Uri.parse(searchUrl));
@@ -114,24 +151,22 @@ class WeatherController extends GetxController {
           var latitude = searchData['geonames'][0]['lat'];
           var longitude = searchData['geonames'][0]['lng'];
 
-          // Step 2: Get timezone using the latitude and longitude
           String timeZoneUrl =
               'http://api.geonames.org/timezoneJSON?lat=$latitude&lng=$longitude&username=gauravpathak207';
           final timeZoneResponse = await http.get(Uri.parse(timeZoneUrl));
 
           if (timeZoneResponse.statusCode == 200) {
             var timeZoneData = json.decode(timeZoneResponse.body);
-            return timeZoneData['timezoneId'] ?? ''; // Return the timezoneId
+            return timeZoneData['timezoneId'] ?? '';
           }
         }
       }
-      return ''; // If the request fails, return empty
+      return '';
     } catch (e) {
-      return ''; // Handle error and return empty
+      return '';
     }
   }
 
-  // Get current time using the fetched timezone
   Future<String> getCurrentTime(String countryCode, String cityName) async {
     String timezone = await getTimeZone(countryCode, cityName);
 
@@ -155,7 +190,19 @@ class WeatherScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Center(child: Text('Weather Information')),
+        centerTitle: true,
+        title: const CustomAppBaar(),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SettingsScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

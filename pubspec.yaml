@@ -1,4 +1,4 @@
-name: gauravapp
+name: ww_weather
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -41,6 +41,7 @@ dependencies:
   weather: ^3.1.1
   timezone: ^0.9.4
   speech_to_text: ^7.0.0
+  shared_preferences: any
 
 dev_dependencies:
   flutter_test:
