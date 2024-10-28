@@ -35,6 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final themeMode = value ? ThemeMode.dark : ThemeMode.light;
     // ignore: use_build_context_synchronously
     MyApp.of(context)?.changeTheme(themeMode);
+    Navigator.pop(context);
   }
 
   @override
